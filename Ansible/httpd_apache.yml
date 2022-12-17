@@ -1,0 +1,11 @@
+- hosts: appservers
+  remote_user: root
+  tasks:
+  - name: updating the packages
+    shell: yum update -y
+   
+  - name: install httpd on the appservers
+    yum: name=httpd state=present
+    
+  - name: starting the service
+    service: name=httpd state=started

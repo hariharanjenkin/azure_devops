@@ -1,0 +1,14 @@
+- hosts: appservers
+  remote_user: root
+  tasks:
+  - name: updating the packages
+    shell: yum update -y
+  
+  - name: Installing Docker Enginer on all the servers
+    yum: name=docker state=present
+  
+  - name: Starting the Docker Service
+    service: name=docker state=started
+    
+  - name: Downloading the basic Images
+    shell: docker pull ubuntu
