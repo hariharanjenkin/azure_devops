@@ -7,19 +7,19 @@
         {
             "type": "Microsoft.Network/VirtualNetworks",
             "apiVersion": "2021-01-01",
-            "name": "ht-vnet-jenkins",
+            "name": "ht-vnet-jenkins-b109",
             "location": "East US",
             "properties": {
                 "addressSpace": {
                     "addressPrefixes": [
-                        "10.1.0.0/16"
+                        "10.10.0.0/16"
                     ]
                 },
                 "subnets": [
                     {
                         "name": "default",
                         "properties": {
-                            "addressPrefix": "10.1.0.0/24"
+                            "addressPrefix": "10.10.0.0/24"
                         }
                     }
                 ]
