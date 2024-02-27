@@ -13,12 +13,12 @@ steps:
     terraform init
     terraform plan -out=tfplan
   displayName: 'Terraform Init and Plan'
-  workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+  workingDirectory: '$(System.DefaultWorkingDirectory)/Terraform/vnet-example.tf'
 
 - task: TerraformTaskV1@0
   inputs:
     provider: 'azurerm'
     command: 'apply'
-    workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
-    environmentServiceNameAzureRM: '<your-service-connection-name>'
-    commandOptions: '-auto-approve -input=false'
+    workingDirectory: '(System.DefaultWorkingDirectory)/Terraform/vnet-example.tf'
+    environmentServiceNameAzureRM: 'MY_Azure_SC'
+    commandOptions: '-auto-approve -input=true'
