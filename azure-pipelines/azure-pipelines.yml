@@ -1,0 +1,23 @@
+trigger:
+- main  # Or specify the branch you want to trigger the pipeline
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: TerraformToolInstaller@0
+  inputs:
+    terraformVersion: 'latest'
+
+- script: |
+    terraform init
+    terraform plan -out=tfplan
+  displayName: 'Terraform Init and Plan'
+
+- task: TerraformTaskV1@0
+  inputs:
+    provider: 'azurerm'
+    command: 'apply'
+    workingDirectory: '$(System.DefaultWorkingDirectory)'
+    environmentServiceNameAzureRM: '<your-service-connection-name>'
+    commandOptions: '-auto-approve -input=false'
