@@ -1,0 +1,30 @@
+# azure-pipelines.yml
+
+trigger:
+- main  # or your branch name
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  cloudFormationTemplate: 'path/to/your/cloudformation-template.yml'
+  stackName: 'your-cloudformation-stack-name'
+  awsRegion: 'us-east-1'  # Update with your desired AWS region
+
+steps:
+- task: DownloadBuildArtifacts@0
+  inputs:
+    buildType: 'current'
+    downloadType: 'single'
+    downloadPath: '$(System.DefaultWorkingDirectory)'
+
+- task: AWSCloudFormationDeploy@1
+  inputs:
+    AWSConnectionName: 'Your-AWS-Service-Connection'  # Update with your service connection name
+    StackName: $(stackName)
+    TemplateFile: '$(cloudFormationTemplate)'
+    RegionName: $(awsRegion)
+    Capabilities: 'CAPABILITY_IAM'
+    ParameterOverrides: ''
+    # Optionally, add other parameters like S3BucketName, RoleArn, etc.
+  displayName: 'Deploy CloudFormation Template'
