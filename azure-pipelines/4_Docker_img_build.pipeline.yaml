@@ -1,0 +1,66 @@
+trigger:
+- main  # Define your trigger branch
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+- stage: CleanWorkspace
+  jobs:
+  - job: CleanWorkspaceJob
+    steps:
+    - script: |
+        echo "Cleaning workspace"
+        # Add commands to clean workspace as needed
+      displayName: 'Clean Workspace'
+
+- stage: GitClone
+  jobs:
+  - job: GitCloneJob
+    steps:
+    - task: SSH@0
+      inputs:
+        sshEndpoint: 'docker_host'
+        runOptions: 'inline'
+        inline: |
+          sudo rm -rf docker
+          sudo git clone https://github.com/hariharanjenkin/docker.git
+      displayName: 'Git Clone'
+
+- stage: VerifyClone
+  jobs:
+  - job: VerifyCloneJob
+    steps:
+    - task: SSH@0
+      inputs:
+        sshEndpoint: 'docker_host'
+        runOptions: 'inline'
+        inline: |
+          sudo pwd
+          sudo ls
+          sudo cat docker/Dockerfile
+      displayName: 'Verify the Clone'
+
+- stage: BuildDockerImage
+  jobs:
+  - job: BuildDockerImageJob
+    steps:
+    - task: SSH@0
+      inputs:
+        sshEndpoint: 'docker_host'
+        runOptions: 'inline'
+        inline: |
+          sudo docker build -t htimg /home/ec2-user/docker/
+      displayName: 'Build the Docker Image'
+
+- stage: DockerImages
+  jobs:
+  - job: DockerImagesJob
+    steps:
+    - task: SSH@0
+      inputs:
+        sshEndpoint: 'docker_host'
+        runOptions: 'inline'
+        inline: |
+          sudo docker images
+      displayName: 'List Docker Images'
