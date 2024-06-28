@@ -1,0 +1,53 @@
+# Command to create Azure Service Principle
+# >> az ad sp create-for-rbac --name terraform_sp --role contributor --scopes /subscriptions/254fc39b-c667-436b-80a7-f0dc7038e484 --sdk-auth
+
+
+# azure-pipelines.yml
+trigger:
+- main  # or your branch name
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  azureSubscription: '254fc39b-c667-438e484'
+  resourceGroupName: 'HT-TB-RG'
+  location: 'Central India'
+  templateFile: 'Terraform/Vnet_eg_with_variable-1/vnet.tf'
+  azureResourceManagerConnection: 'myAzure'
+  servicePrincipalId: 'aaed67d2-c342-ad38fe1'
+  servicePrincipalKey: 'in48Q~9HA_3UBmFK1JXbSO'
+  tenantId: 'c4ee9917-729ed9f230'
+
+
+steps:
+- checkout: self  # Ensure the repo is checked out
+
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: 'myAzure'  # Use the name of your Azure service connection
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      az login --service-principal -u $(servicePrincipalId) -p $(servicePrincipalKey) --tenant $(tenantId)
+  displayName: 'Azure CLI Login'
+    
+- script: |
+    echo "Installing Terraform"
+    curl -LO https://releases.hashicorp.com/terraform/0.14.10/terraform_0.14.10_linux_amd64.zip
+    unzip terraform_0.14.10_linux_amd64.zip
+    sudo mv terraform /usr/local/bin/
+    terraform -v
+  displayName: 'Install Terraform'
+
+- script: |
+    echo "Initializing Terraform"
+    cd $(Build.SourcesDirectory)/Terraform/Vnet_eg_with_variable-1
+    terraform init
+  displayName: 'Terraform Init'
+
+- script: |
+    echo "Applying Terraform Configuration"
+    cd $(Build.SourcesDirectory)/Terraform/Vnet_eg_with_variable-1
+    terraform apply -auto-approve
+  displayName: 'Terraform Apply'
