@@ -1,36 +1,24 @@
-# azure-pipelines.yml
 trigger:
-- main  # or your branch name
+- main  # Trigger pipeline on changes to the main branch
 
 pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  azureSubscription: '254fc39b-c667-436b-80a7-f0dc7038e484'
-  resourceGroupName: 'HT-TB-RG'
-  location: 'Central India'
-  templateFile: 'ARM/Simple_Vnet_ARM.json'
-  azureResourceManagerConnection: 'myAzure'
-  
-stages:
-- stage: Deploy
-  jobs:
-  - job: DeployResources
-    displayName: 'Deploy ARM Template'
-    steps:
-    - checkout: self  # Ensure the repo is checked out
-    - script: |
-        echo "Listing files in $(Build.SourcesDirectory)/ARM"
-        ls -al $(Build.SourcesDirectory)/ARM
-      displayName: 'List ARM Directory Files'
-    - task: AzureResourceManagerTemplateDeployment@3
-      inputs:
-        deploymentScope: 'Resource Group'
-        azureResourceManagerConnection: '$(azureResourceManagerConnection)'  # Reference to your service connection
-        subscriptionId: '$(azureSubscription)'
-        action: 'Create Or Update Resource Group'
-        resourceGroupName: '$(resourceGroupName)'
-        location: '$(location)'
-        templateLocation: 'Linked artifact'
-        csmFile: '$(Build.SourcesDirectory)/ARM/Simple_Vnet_ARM.json'
-        deploymentMode: 'Incremental'  # or 'Complete'
+  ARM_TEMPLATE: 'ARM/Simple_Vnet_ARM.json'  # Path to your ARM template
+  RESOURCE_GROUP: 'Training'  # Replace with your Azure Resource Group name
+  LOCATION: 'Central India'  # Replace with your preferred Azure region
+  system.debug: true
+
+steps:
+- task: AzureResourceManagerTemplateDeployment@3
+  inputs:
+    deploymentScope: 'Resource Group'
+    azureResourceManagerConnection: 'Azure'
+    subscriptionId: '254fc39b-c667-436b-80a7-f0dc7038e484'
+    action: 'Create Or Update Resource Group'
+    resourceGroupName: 'Training'
+    location: 'Central India'
+    templateLocation: 'Linked artifact'
+    csmFile: 'ARM/Simple_Vnet_ARM.json'
+    deploymentMode: 'Incremental'
