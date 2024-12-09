@@ -1,53 +1,71 @@
-# Command to create Azure Service Principle
-# >> az ad sp create-for-rbac --name terraform_sp --role contributor --scopes /subscriptions/254fc39b-c667-436b-80a7-f0dc7038e484 --sdk-auth
-
-
-# azure-pipelines.yml
 trigger:
-- main  # or your branch name
+- main  # Trigger pipeline on changes to the main branch
 
 pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  azureSubscription: '254fc39b-c667-438e484'
-  resourceGroupName: 'HT-TB-RG'
-  location: 'Central India'
-  templateFile: 'Terraform/Vnet_eg_with_variable-1/vnet.tf'
-  azureResourceManagerConnection: 'myAzure'
-  servicePrincipalId: 'aaed67d2-c342-ad38fe1'
-  servicePrincipalKey: 'in48Q~9HA_3UBmFK1JXbSO'
-  tenantId: 'c4ee9917-729ed9f230'
-
+  tf_source: 'Terraform/Vnet_eg_with_variable-1'  # Path to the Terraform configuration
+  tf_backend_storage_account: 'azurepipelinestoacc'  # Replace with your Storage Account Name
+  tf_backend_container: 'diape'  # Replace with your Blob Container Name
+  tf_backend_key: 'vnet.terraform.tfstate'  # Replace with your state file name
+  resource_group: 'Training'  # Replace with your Resource Group Name
 
 steps:
-- checkout: self  # Ensure the repo is checked out
+# Step 1: Install Terraform
+# - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@2
+#   inputs:
+#     terraformVersion: 'latest'
 
-- task: AzureCLI@2
-  inputs:
-    azureSubscription: 'myAzure'  # Use the name of your Azure service connection
-    scriptType: 'bash'
-    scriptLocation: 'inlineScript'
-    inlineScript: |
-      az login --service-principal -u $(servicePrincipalId) -p $(servicePrincipalKey) --tenant $(tenantId)
-  displayName: 'Azure CLI Login'
-    
 - script: |
-    echo "Installing Terraform"
-    curl -LO https://releases.hashicorp.com/terraform/0.14.10/terraform_0.14.10_linux_amd64.zip
-    unzip terraform_0.14.10_linux_amd64.zip
+    curl -sSL https://releases.hashicorp.com/terraform/1.5.6/terraform_1.5.6_linux_amd64.zip -o terraform.zip
+    unzip terraform.zip
     sudo mv terraform /usr/local/bin/
-    terraform -v
   displayName: 'Install Terraform'
-
+  
+# Step 2: Initialize Terraform
 - script: |
-    echo "Initializing Terraform"
-    cd $(Build.SourcesDirectory)/Terraform/Vnet_eg_with_variable-1
-    terraform init
+    terraform init \
+      -backend-config="storage_account_name=$(tf_backend_storage_account)" \
+      -backend-config="container_name=$(tf_backend_container)" \
+      -backend-config="key=$(tf_backend_key)" \
+      -backend-config="resource_group_name=$(resource_group)"
   displayName: 'Terraform Init'
+  workingDirectory: $(tf_source)
 
+
+# Step 3: Validate Terraform Configuration
 - script: |
-    echo "Applying Terraform Configuration"
-    cd $(Build.SourcesDirectory)/Terraform/Vnet_eg_with_variable-1
+    terraform validate
+  displayName: 'Terraform Validate'
+  workingDirectory: $(tf_source)
+
+# # Step 4: Plan Terraform Deployment
+# - script: |
+#     terraform plan -out=tfplan
+#   displayName: 'Terraform Plan'
+#   workingDirectory: $(tf_source)
+
+# - task: TerraformTaskV4@4
+#   inputs:
+#     provider: 'azurerm'
+#     command: 'apply'
+#     environmentServiceNameAzureRM: 'Azure'
+
+# Step 5: Apply Terraform Deployment
+- script: |
     terraform apply -auto-approve
   displayName: 'Terraform Apply'
+  workingDirectory: $(tf_source)
+
+
+# Note
+# Configure the Terraform Main.tf file Azure Provider like below
+# provider "azurerm" {
+#   features {}
+#   subscription_id = "2542fb-c6627-4326b-802a7-f0d03e484"
+#   client_id       = "44242f8-0027f-41270-928fc-49e2860ab"  # Replace with your Service Principal's Client ID
+#   client_secret   = "DGL28Q~spf82eEyliTync212c4p"  # Replace with your Service Principal's Client Secret
+#   tenant_id       = "c917-7207-42628-aafe-ef8a30"  # Replace with your Azure Tenant ID
+# }
+
