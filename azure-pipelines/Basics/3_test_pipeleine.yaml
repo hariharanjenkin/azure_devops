@@ -1,0 +1,48 @@
+trigger:
+- main
+
+pool:
+  name: Default
+
+stages:
+  - stage: Buildstage
+    displayName: 'Build in progress'
+    jobs:
+    - job: build
+      displayName: 'Building the pipeline'
+      steps:
+      - script: echo Hello, world!
+        displayName: 'Run a one-line script'
+
+      - script: |
+          echo Add other tasks to build, test, and deploy your project.
+          echo See https://aka.ms/yaml
+        displayName: 'Run a multi-line script'
+
+  - stage: Deploy_Dev
+    displayName: 'Dev deployment'
+    jobs:
+    - job: build
+      displayName: 'Building the pipeline'
+      steps:
+      - script: echo Hello, world!
+        displayName: 'Run a one-line script'
+
+      - script: |
+          echo Add other tasks to build, test, and deploy your project.
+          echo See https://aka.ms/yaml
+        displayName: 'Run a multi-line script'
+  
+  - stage: Deploy_prod
+    displayName: 'Prod deployment'
+    jobs:
+    - job: build
+      displayName: 'Building the pipeline'
+      steps:
+      - script: echo Hello, world!
+        displayName: 'Run a one-line script'
+
+      - script: |
+          echo Add other tasks to build, test, and deploy your project.
+          echo See https://aka.ms/yaml
+        displayName: 'Run a multi-line script'

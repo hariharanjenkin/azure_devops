@@ -1,0 +1,25 @@
+trigger:
+- main
+
+pool:
+  name: Default
+
+jobs:
+- job: build
+  displayName: build job started
+  steps:
+  - script: echo Hello, world!
+    displayName: 'Run a one-line script'
+
+  - script: |
+      echo Add other tasks to build, test, and deploy your project.
+      echo See https://aka.ms/yaml
+    displayName: 'Run a multi-line script'
+
+- job: security_scan
+  displayName: sonar scan
+  steps:
+    - script: |
+        echo Add other tasks to build, test, and deploy your project.
+        echo See https://aka.ms/yaml
+      displayName: 'Run a multi-line script'
