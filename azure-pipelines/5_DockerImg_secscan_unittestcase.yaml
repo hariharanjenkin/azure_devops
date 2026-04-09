@@ -11,7 +11,7 @@ trigger:
 #       - main
 
 variables:
-  azureSubscription: '254fc39b-c667-436b-80a7-f0dc7038e484'      # Replace with your Azure DevOps service connection name
+  azureSubscription: 'MyAzureServiceConnection'      # Replace with your Azure DevOps service connection name
   azureContainerRegistry: 'pipelineb214'             # Replace with your ACR name
   acrLoginServer: '$(azureContainerRegistry).azurecr.io'
   imageName: 'cicd-demo-app'
@@ -34,6 +34,7 @@ stages:
         displayName: Build Docker image
         inputs:
           command: build
+          buildContext: azure-pipelines/
           Dockerfile: Dockerfile
           tags: |
             $(imageName):$(imageTag)
@@ -65,6 +66,14 @@ stages:
       vmImage: ubuntu-latest
     steps:
       - checkout: self
+      - task: Docker@2
+        displayName: Build Docker image for scan
+        inputs:
+          command: build
+          buildContext: azure-pipelines/
+          Dockerfile: Dockerfile
+          tags: |
+            $(imageName):$(imageTag)
       - script: |
           sudo apt-get update
           sudo apt-get install -y curl ca-certificates
