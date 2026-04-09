@@ -1,0 +1,128 @@
+name: Docker Image Azure ACR Security Scan and Unit Test Pipeline
+
+trigger:
+  branches:
+    include:
+      - main
+
+# pr:
+#   branches:
+#     include:
+#       - main
+
+variables:
+  azureSubscription: '254fc39b-c667-436b-80a7-f0dc7038e484'      # Replace with your Azure DevOps service connection name
+  azureContainerRegistry: 'pipelineb214'             # Replace with your ACR name
+  acrLoginServer: '$(azureContainerRegistry).azurecr.io'
+  imageName: 'cicd-demo-app'
+  imageTag: '$(Build.BuildId)'
+  resourceGroup: 'example-resources'                # Replace with your Azure resource group
+  containerGroup: 'cicd-demo-app-group'
+  location: 'Central India'
+
+stages:
+- stage: Build
+  displayName: Build Stage
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+      - checkout: self
+      - task: Docker@2
+        displayName: Build Docker image
+        inputs:
+          command: build
+          Dockerfile: Dockerfile
+          tags: |
+            $(imageName):$(imageTag)
+
+- stage: Test
+  displayName: Test Stage
+  dependsOn: Build
+  jobs:
+  - job: UnitTests
+    displayName: Unit Tests
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+      - checkout: self
+      - script: |
+          echo "Running unit tests..."
+          # Add your test commands here, for example:
+          # npm install
+          # npm test
+        displayName: Run Unit Tests
+
+- stage: SecurityScan
+  displayName: Security Scan Stage
+  dependsOn: Test
+  jobs:
+  - job: Scan
+    displayName: Security Scan
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+      - checkout: self
+      - script: |
+          sudo apt-get update
+          sudo apt-get install -y curl ca-certificates
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+          trivy image --format table --exit-code 1 --severity CRITICAL,HIGH $(imageName):$(imageTag)
+        displayName: Run Trivy scan
+
+- stage: Push
+  displayName: Push Stage
+  dependsOn: SecurityScan
+  jobs:
+  - job: PushToACR
+    displayName: Push to Azure Container Registry
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+      - checkout: self
+      - task: AzureCLI@2
+        displayName: Login to Azure and push image
+        inputs:
+          azureSubscription: $(azureSubscription)
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            az acr login --name $(azureContainerRegistry)
+            docker tag $(imageName):$(imageTag) $(acrLoginServer)/$(imageName):latest
+            docker push $(acrLoginServer)/$(imageName):latest
+
+# - stage: Deploy
+#   displayName: Deploy Stage
+#   dependsOn: Push
+#   jobs:
+#   - deployment: DeployAzureContainer
+#     displayName: Deploy to Azure Container Instance
+#     environment: production
+#     pool:
+#       vmImage: ubuntu-latest
+#     strategy:
+#       runOnce:
+#         deploy:
+#           steps:
+#             - task: AzureCLI@2
+#               displayName: Deploy image to Azure Container Instance
+#               inputs:
+#                 azureSubscription: $(azureSubscription)
+#                 scriptType: bash
+#                 scriptLocation: inlineScript
+#                 inlineScript: |
+#                   az group create --name $(resourceGroup) --location $(location)
+#                   ACR_USERNAME=$(az acr credential show --name $(azureContainerRegistry) --query "username" -o tsv)
+#                   ACR_PASSWORD=$(az acr credential show --name $(azureContainerRegistry) --query "passwords[0].value" -o tsv)
+#                   az container create \
+#                     --resource-group $(resourceGroup) \
+#                     --name $(containerGroup) \
+#                     --image $(acrLoginServer)/$(imageName):latest \
+#                     --registry-login-server $(acrLoginServer) \
+#                     --registry-username "$ACR_USERNAME" \
+#                     --registry-password "$ACR_PASSWORD" \
+#                     --dns-name-label $(containerGroup)-$(Build.BuildId) \
+#                     --ports 80
+#               failOnStandardError: true
