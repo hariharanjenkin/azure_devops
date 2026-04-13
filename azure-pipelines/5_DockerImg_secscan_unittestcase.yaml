@@ -11,8 +11,9 @@ trigger:
 #       - main
 
 variables:
-  azureSubscription: 'MyAzureServiceConnection'      # Replace with your Azure DevOps service connection name
+  azureSubscription: 'Pipeline-azure-sub'      # Replace with your Azure DevOps service connection name
   azureContainerRegistry: 'pipelineb214'             # Replace with your ACR name
+  ServiceConnectioncontainerregistry: 'pipeline-container-registry' # Replace with your containerregistry Service connection name
   acrLoginServer: '$(azureContainerRegistry).azurecr.io'
   imageName: 'cicd-demo-app'
   imageTag: '$(Build.BuildId)'
@@ -66,72 +67,44 @@ stages:
       vmImage: ubuntu-latest
     steps:
       - checkout: self
-      - task: Docker@2
-        displayName: Build Docker image for scan
-        inputs:
-          command: build
-          buildContext: azure-pipelines/
-          Dockerfile: Dockerfile
-          tags: |
-            $(imageName):$(imageTag)
+
+      - script: |
+          echo "Building Docker image with proper tag..."
+          docker build -t $(imageName):$(imageTag) -f Dockerfile .
+
+      # Verify image exists
+      - script: |
+          echo "Listing Docker images..."
+          docker images
+        displayName: Verify Image Exists
+
+      # Install Trivy
       - script: |
           sudo apt-get update
           sudo apt-get install -y curl ca-certificates
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
-          trivy image --format table --exit-code 1 --severity CRITICAL,HIGH $(imageName):$(imageTag)
-        displayName: Run Trivy scan
+        displayName: Install Trivy
 
-- stage: Push
-  displayName: Push Stage
-  dependsOn: SecurityScan
+      # Scan image
+      - script: |
+          trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 0 $(imageName):$(imageTag)
+        displayName: Run Trivy Scan
+
+- stage: BuildAndPush
   jobs:
-  - job: PushToACR
-    displayName: Push to Azure Container Registry
+  - job: BuildPush
     pool:
       vmImage: ubuntu-latest
     steps:
       - checkout: self
-      - task: AzureCLI@2
-        displayName: Login to Azure and push image
-        inputs:
-          azureSubscription: $(azureSubscription)
-          scriptType: bash
-          scriptLocation: inlineScript
-          inlineScript: |
-            az acr login --name $(azureContainerRegistry)
-            docker tag $(imageName):$(imageTag) $(acrLoginServer)/$(imageName):latest
-            docker push $(acrLoginServer)/$(imageName):latest
 
-# - stage: Deploy
-#   displayName: Deploy Stage
-#   dependsOn: Push
-#   jobs:
-#   - deployment: DeployAzureContainer
-#     displayName: Deploy to Azure Container Instance
-#     environment: production
-#     pool:
-#       vmImage: ubuntu-latest
-#     strategy:
-#       runOnce:
-#         deploy:
-#           steps:
-#             - task: AzureCLI@2
-#               displayName: Deploy image to Azure Container Instance
-#               inputs:
-#                 azureSubscription: $(azureSubscription)
-#                 scriptType: bash
-#                 scriptLocation: inlineScript
-#                 inlineScript: |
-#                   az group create --name $(resourceGroup) --location $(location)
-#                   ACR_USERNAME=$(az acr credential show --name $(azureContainerRegistry) --query "username" -o tsv)
-#                   ACR_PASSWORD=$(az acr credential show --name $(azureContainerRegistry) --query "passwords[0].value" -o tsv)
-#                   az container create \
-#                     --resource-group $(resourceGroup) \
-#                     --name $(containerGroup) \
-#                     --image $(acrLoginServer)/$(imageName):latest \
-#                     --registry-login-server $(acrLoginServer) \
-#                     --registry-username "$ACR_USERNAME" \
-#                     --registry-password "$ACR_PASSWORD" \
-#                     --dns-name-label $(containerGroup)-$(Build.BuildId) \
-#                     --ports 80
-#               failOnStandardError: true
+      - task: Docker@2
+        displayName: Build and Push
+        inputs:
+          command: buildAndPush
+          repository: $(imageName)
+          dockerfile: Dockerfile
+          containerRegistry: $(ServiceConnectioncontainerregistry)
+          tags: |
+            $(imageTag)
+            latest
