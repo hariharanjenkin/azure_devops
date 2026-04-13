@@ -1,0 +1,86 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'   # equivalent to Jenkins agent
+
+variables:
+  hostname: $(hostname)   # define in pipeline variables or variable group
+
+stages:
+
+# Stage 1: Clean Workspace
+- stage: CleanWs
+  jobs:
+  - job: Clean
+    steps:
+    - checkout: self
+      clean: true
+
+# Stage 2: Git Clone on Remote Server
+- stage: GitClone
+  jobs:
+  - job: CloneRepo
+    steps:
+    - task: SSH@0
+      inputs:
+        sshEndpoint: 'docker_host'   # Service Connection (SSH)
+        runOptions: 'commands'
+        commands: |
+          sudo rm -rf docker
+          sudo git clone https://github.com/hariharanjenkin/docker.git
+
+# Stage 3: Verify Clone
+- stage: VerifyClone
+  jobs:
+  - job: Verify
+    steps:
+    - task: SSH@0
+      inputs:
+        sshEndpoint: 'docker_host'
+        runOptions: 'commands'
+        commands: |
+          pwd
+          ls
+          cat docker/K8S_Deployments/deployment.yml
+          cat docker/K8S_Deployments/service.yaml
+
+# Stage 4: Kubernetes Config Update
+- stage: KubeConfig
+  jobs:
+  - job: UpdateConfig
+    steps:
+    - task: SSH@0
+      inputs:
+        sshEndpoint: 'docker_host'
+        runOptions: 'commands'
+        commands: |
+          sudo aws eks update-kubeconfig --name ht-cluster --region us-west-2
+          kubectl get nodes
+
+# Stage 5: Create Deployment & Service
+- stage: DeployK8s
+  jobs:
+  - job: Deploy
+    steps:
+    - task: SSH@0
+      inputs:
+        sshEndpoint: 'docker_host'
+        runOptions: 'commands'
+        commands: |
+          kubectl apply -f docker/K8S_Deployments/deployment.yml
+          kubectl apply -f docker/K8S_Deployments/service.yaml
+
+# Stage 6: Verify Resources
+- stage: VerifyResources
+  jobs:
+  - job: VerifyK8s
+    steps:
+    - task: SSH@0
+      inputs:
+        sshEndpoint: 'docker_host'
+        runOptions: 'commands'
+        commands: |
+          kubectl get pod
+          kubectl get deployment
+          kubectl get service
